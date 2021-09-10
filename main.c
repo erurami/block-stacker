@@ -253,6 +253,10 @@ int gameoverAndAskContinue(void);
 
 int pauseMenu(void);
 
+int mainTitle(void);
+
+void gameStartAnimation(void);
+
 /*--------------------------------------------------------*/
 /*                                                        */
 /*--------------------------------------------------------*/
@@ -304,17 +308,21 @@ int main()
     int keyboard_input;
     int arrow_code;
 
-    hideConsoleCursor();
-
     printf("\n\n\n");
     printf("                    block stacker\n");
 
-    /*if (!main_title())
+    hideConsoleCursor();
+
+    if (mainTitle() == 0)
+    {
         printf("\033[10C\033[25B\n\n\n\n");
         showConsoleCursor();
-        return 0;*/
+        return 0;
+    }
 
     GAME_START:
+
+    hideConsoleCursor();
 
     state = 0;
     score = 0;
@@ -345,7 +353,7 @@ int main()
     cpu_time = clock();
     last_cpu_time = cpu_time;
 
-    /*game_start_animation();*/
+    gameStartAnimation();
 
     while (state == 0)
     {
@@ -903,6 +911,125 @@ int gameoverAndAskContinue(void)
     }
 }
 
+int mainTitle(void)
+{
+    for (int i=0; i<(row+5); i++)
+        printf("\n");
+    printf("\033[%dA", row+5);
+
+    int key_info;
+
+    long animation_start = clock();
+    long animation_time;
+    int animation_step = 0;
+
+    while (animation_step < (row +1))
+    {
+        animation_time = clock() - animation_start;
+        animation_step = animation_time / 15;
+        if (kbhit())
+        {
+            key_info = getch();
+            switch (key_info)
+            {
+                case 0x1b:
+                    return 0;
+                    break;
+                default:
+                    return 1;
+                    break;
+            }
+        }
+        printf("\n");
+        for (int y=0; y<row; y++)
+        {
+            printf("              ##");
+            if (y <= animation_step)
+            {
+                switch (y)
+                {
+                    case 5:
+                        printf("    block stacker   ");
+                        break;
+                    case 17:
+                        printf("    press \033[32many key\033[m   ");
+                        break;
+                    case 18:
+                        printf("      to \033[32mSTART\033[m      ");
+                        break;
+                    case 20:
+                        printf("    press  \033[31m[Esc]\033[m    ");
+                        break;
+                    case 21:
+                        printf("     to  \033[31mEscape\033[m     ");
+                        break;
+                    default:
+                        printf("                    ");
+                        break;
+                }
+            }
+            else
+                printf("....................");
+            printf("##              ##\n");
+        }
+        printf("######################################################\n");
+        printf("\n\n\n");
+        printf("\033[10D\033[%dA", row+5);
+    }
+
+    while (1)
+    {
+        if (kbhit())
+        {
+            key_info = getch();
+            switch (key_info)
+            {
+                case 0x1b:
+                    return 0;
+                    break;
+                default:
+                    return 1;
+                    break;
+            }
+        }
+    }
+
+}
+
+void gameStartAnimation(void)
+{
+    for (int i=0; i<(row+5); i++)
+        printf("\n");
+    printf("\033[%dA", row+5);
+
+    int key_info;
+
+    long animation_start = clock();
+    long animation_time;
+    int animation_step = 0;
+
+    while (animation_step < (row +1))
+    {
+        animation_time = clock() - animation_start;
+        animation_step = animation_time / 15;
+        printf("\n");
+        for (int y=0; y<row; y++)
+        {
+            printf("              ##");
+            if (y <= animation_step)
+                printf("....................");
+            else
+                printf("                    ");
+            printf("##              ##\n");
+        }
+        printf("######################################################\n");
+        printf("\n\n\n");
+        printf("\033[10D\033[%dA", row+5);
+    }
+    return;
+
+}
+
 void printPauseMenu(int y)
 {
     switch (y)
@@ -1219,26 +1346,16 @@ void renderRightSide(int y)
         case 1:
             printf("=====next=====");
             break;
-        case 2:
-            print_next_brick(0);
-            break;
         case 6:
-            printf("==============");
-            break;
-        case 7:
-            print_next_brick(1);
-            break;
         case 11:
-            printf("==============");
-            break;
-        case 12:
-            print_next_brick(2);
-            break;
         case 16:
             printf("==============");
             break;
+        case 2:
+        case 7:
+        case 12:
         case 17:
-            print_next_brick(3);
+            print_next_brick((y-2)/5);
             break;
         default:
             if (!areSameArray(last_upcoming_bricks, upcoming_bricks, sizeof(upcoming_bricks) / sizeof(int)))
@@ -1251,9 +1368,6 @@ void renderRightSide(int y)
 void renderGame(void)
 {
     printf("\n");
-    for (int i=0; i<(row+5); i++)
-        printf("\n");
-    printf("\033[%dA", row+5);
     for (int y=0; y<row; y++)
     {
         renderLeftSide(y);
