@@ -13,8 +13,6 @@
 /*                                                          */
 /*      add hold                                            */
 /*                                                          */
-/*      preview                                             */
-/*                                                          */
 /*      animation game start                                */
 /*                                                          */
 /*                                                          */
@@ -65,12 +63,21 @@ int BRICKS_AND_ROTATIONS_AND_BLOCK_POSITIONS[7][4][8] = \
     0, 1, 1, 1, 2, 1, 1, 2,  1, 0, 0, 1, 1, 1, 1, 2,  1, 0, 0, 1, 1, 1, 2, 1,  1, 0, 1, 1, 2, 1, 1, 2,
     0, 2, 1, 2, 2, 2, 3, 2,  1, 0, 1, 1, 1, 2, 1, 3,  0, 2, 1, 2, 2, 2, 3, 2,  1, 0, 1, 1, 1, 2, 1, 3};
 
+unsigned int BRICK_TYPE_AND_COLOR_CODES[7][3] = {\
+    197,  15,  31,
+     19, 161,  14,
+    193, 156,   0,
+      0,  55, 218,
+    136,  23, 152,
+     58, 150, 221,
+    204, 204, 204};
+
 struct BRICK_INFO {
     int position[2];
     int brick_type;
     int cordinates[8];
     int rotation;
-} falling_brick;
+} falling_brick, virtual_fallen_brick;
 
 
 
@@ -163,6 +170,12 @@ int areSameArray(int *arr_1, int *arr_2, int arr_size)
     return 1;
 }
 
+int cut_minus(int value)
+{
+    return ((value > 0) ? value : 0);
+}
+
+
 
 /*---------------------------------------------------------------------*/
 /*                                                                     */
@@ -209,6 +222,8 @@ void hardDrop(void);
 
 
 struct BRICK_INFO reCalculateBrickCordinate(struct BRICK_INFO);
+
+void reCalculateVirtualFallenBrick();
 
 int newBrick(void);
 
@@ -317,6 +332,8 @@ int main()
         upcoming_bricks[i] = rand()%7+1;
     newBrick();
 
+    reCalculateVirtualFallenBrick();
+
     initRenderGame();
 
     game_time = 0;
@@ -347,9 +364,11 @@ int main()
                         {
                             case 0x4b:
                                 moveFallingBrickOnestep(0, -1);
+                                reCalculateVirtualFallenBrick();
                                 break;
                             case 0x4d:
                                 moveFallingBrickOnestep(0, 1);
+                                reCalculateVirtualFallenBrick();
                                 break;
                             case 0x50:
                                 moveFallingBrickOnestep(1, 1);
@@ -362,9 +381,11 @@ int main()
                         break;
                     case 0x7a:
                         rotateBrickLeft();
+                        reCalculateVirtualFallenBrick();
                         break;
                     case 0x63:
                         rotateBrickRight();
+                        reCalculateVirtualFallenBrick();
                         break;
                 }
             }
@@ -383,6 +404,7 @@ int main()
                         break;
                     }
                     time_from_last_brick_fall = 0;
+                    reCalculateVirtualFallenBrick();
                 }
             }
             time_from_last_brick_fall %= brick_fall_interval;
@@ -392,6 +414,7 @@ int main()
             time_from_last_brick_fall = 0;
 
         drawFixedBlocks();
+        drawBrick(virtual_fallen_brick);
         drawBrick(falling_brick);
 
         renderGame();
@@ -566,6 +589,17 @@ void hardDrop(void)
         result = moveFallingBrickOnestep(1, 1);
         score += 1;
     }
+    while (result);
+}
+
+void reCalculateVirtualFallenBrick(void)
+{
+    virtual_fallen_brick = falling_brick;
+    virtual_fallen_brick.brick_type = falling_brick.brick_type + 8;
+
+    int result;
+    do
+        result = moveBrickOnestep(1, 1, &virtual_fallen_brick);
     while (result);
 }
 
@@ -1069,6 +1103,16 @@ void moveCursor(int vertical, int horizontal)
     return;
 }
 
+void printVirtualBlock(int block_color)
+{
+    int block_org_rgb[3];
+    memcpy(block_org_rgb, BRICK_TYPE_AND_COLOR_CODES[block_color - 9], sizeof(block_org_rgb));
+    int darker_rgb[3];
+    for (int i=0; i<3; i++)
+        darker_rgb[i] = block_org_rgb[i] / 2;
+    printf("\033[48;2;%d;%d;%dm..\033[m", darker_rgb[0], darker_rgb[1], darker_rgb[2]);
+}
+
 void printColoredBlock(int block_color)
 {
     switch (block_color)
@@ -1076,10 +1120,14 @@ void printColoredBlock(int block_color)
         case 0:
             printf("\033[40m..\033[m");
             break;
+        case 1 ... 7:
+            printf("\033[%dm  \033[m", block_color+40);
+            break;
         case 8:
             printf("\033[40m  \033[m");
-        default:
-            printf("\033[%dm  \033[m", block_color+40);
+            break;
+        case 9 ... 15:
+            printVirtualBlock(block_color);
             break;
     }
     return;
@@ -1138,7 +1186,7 @@ void renderLeftSide(int y)
             printf("=====time=====##");
             break;
         case 11:
-            printf("%2d:%2d:%2d.%3d  ##", game_time/3600000, (game_time%3600000/60000), (game_time%60000)/1000, game_time%1000);
+            printf("%2d:%02d:%02d.%03d  ##", game_time/3600000, (game_time%3600000/60000), (game_time%60000)/1000, game_time%1000);
             break;
         case 13:
             printf("=====hold=====##");
