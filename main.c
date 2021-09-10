@@ -133,6 +133,7 @@ int main_grid[row][10] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 
 int upcoming_bricks[5];
 
+long game_time;
 long cpu_time;
 long last_cpu_time;
 
@@ -187,7 +188,9 @@ int areSameArray(int *arr_1, int *arr_2, int arr_size)
 
 
 /*--------brick movement functions--------*/
-int moveBrickOnestep(int, int);
+int moveFallingBrickOnestep(int, int);
+
+int moveBrickOnestep(int, int, struct BRICK_INFO*);
 /* direction value*/
 /* vertical movement ; 1  */
 /* horizonal movement ; 0 */
@@ -316,6 +319,7 @@ int main()
 
     initRenderGame();
 
+    game_time = 0;
     cpu_time = clock();
     last_cpu_time = cpu_time;
 
@@ -323,6 +327,7 @@ int main()
     {
         cpu_time = clock();
         time_from_last_brick_fall += cpu_time - last_cpu_time;
+        game_time += cpu_time - last_cpu_time;
 
         for (int i=0;i<10;i++)
         {
@@ -341,13 +346,13 @@ int main()
                         switch (arrow_code)
                         {
                             case 0x4b:
-                                moveBrickOnestep(0, -1);
+                                moveFallingBrickOnestep(0, -1);
                                 break;
                             case 0x4d:
-                                moveBrickOnestep(0, 1);
+                                moveFallingBrickOnestep(0, 1);
                                 break;
                             case 0x50:
-                                moveBrickOnestep(1, 1);
+                                moveFallingBrickOnestep(1, 1);
                                 break;
                             case 0x48:
                                 hardDrop();
@@ -369,7 +374,7 @@ int main()
         {
             for (int i=0; i<time_from_last_brick_fall/brick_fall_interval; i++)
             {
-                if(!moveBrickOnestep(1, 1))
+                if(!moveFallingBrickOnestep(1, 1))
                 {
                     fixFallingBrick();
                     if (!newBrick())
@@ -412,8 +417,12 @@ int main()
 
 
 
+int moveFallingBrickOnestep(int direction, int movement)
+{
+    return moveBrickOnestep(direction, movement, &falling_brick);
+}
 
-int moveBrickOnestep(int direction, int movement)
+int moveBrickOnestep(int direction, int movement, struct BRICK_INFO *move_brick)
 {
     int move_distance = movement / abs(movement);
     int will_move_to[8];
@@ -421,15 +430,15 @@ int moveBrickOnestep(int direction, int movement)
     for (int i=0; i<8; i++)
     {
         if (i%2==direction)
-            will_move_to[i] = falling_brick.cordinates[i] + move_distance;
+            will_move_to[i] = move_brick->cordinates[i] + move_distance;
         else
-            will_move_to[i] = falling_brick.cordinates[i];
+            will_move_to[i] = move_brick->cordinates[i];
     }
 
     if (isBrickMovableTo(will_move_to))
     {
-        memcpy(falling_brick.cordinates, will_move_to, sizeof(will_move_to));
-        falling_brick.position[direction] += move_distance;
+        memcpy(move_brick->cordinates, will_move_to, sizeof(will_move_to));
+        move_brick->position[direction] += move_distance;
         return 1;
     }
     else
@@ -554,7 +563,7 @@ void hardDrop(void)
     int result;
     do
     {
-        result = moveBrickOnestep(1, 1);
+        result = moveFallingBrickOnestep(1, 1);
         score += 1;
     }
     while (result);
@@ -1129,7 +1138,7 @@ void renderLeftSide(int y)
             printf("=====time=====##");
             break;
         case 11:
-            printf("%2d:%2d:%2d.%3d  ##", cpu_time/3600000, (cpu_time%3600000/60000), (cpu_time%60000)/1000, cpu_time%1000);
+            printf("%2d:%2d:%2d.%3d  ##", game_time/3600000, (game_time%3600000/60000), (game_time%60000)/1000, game_time%1000);
             break;
         case 13:
             printf("=====hold=====##");
