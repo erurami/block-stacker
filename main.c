@@ -309,6 +309,11 @@ int main()
     printf("\n\n\n");
     printf("                    block stacker\n");
 
+    /*if (!main_title())
+        printf("\033[10C\033[25B\n\n\n\n");
+        showConsoleCursor();
+        return 0;*/
+
     GAME_START:
 
     state = 0;
@@ -340,54 +345,56 @@ int main()
     cpu_time = clock();
     last_cpu_time = cpu_time;
 
+    /*game_start_animation();*/
+
     while (state == 0)
     {
         cpu_time = clock();
         time_from_last_brick_fall += cpu_time - last_cpu_time;
         game_time += cpu_time - last_cpu_time;
 
-        for (int i=0;i<10;i++)
+        while (kbhit())
         {
-            if (kbhit())
+            keyboard_input = getch();
+            switch (keyboard_input) 
             {
-                keyboard_input = getch();
-                switch (keyboard_input) 
-                {
-                    case 0x1b:
-                        state = pauseMenu();
-                        time_from_last_brick_fall = 0;
-                        cpu_time = clock();
-                        break;
-                    case 0xe0:
-                        arrow_code = getch();
-                        switch (arrow_code)
-                        {
-                            case 0x4b:
-                                moveFallingBrickOnestep(0, -1);
-                                reCalculateVirtualFallenBrick();
-                                break;
-                            case 0x4d:
-                                moveFallingBrickOnestep(0, 1);
-                                reCalculateVirtualFallenBrick();
-                                break;
-                            case 0x50:
-                                moveFallingBrickOnestep(1, 1);
-                                break;
-                            case 0x48:
-                                hardDrop();
-                                time_from_last_brick_fall = brick_fall_interval;
-                                break;
-                        }
-                        break;
-                    case 0x7a:
-                        rotateBrickLeft();
-                        reCalculateVirtualFallenBrick();
-                        break;
-                    case 0x63:
-                        rotateBrickRight();
-                        reCalculateVirtualFallenBrick();
-                        break;
-                }
+                case 0x1b:
+                    state = pauseMenu();
+                    time_from_last_brick_fall = 0;
+                    cpu_time = clock();
+                    break;
+                case 0xe0:
+                    arrow_code = getch();
+                    switch (arrow_code)
+                    {
+                        case 0x4b:
+                            moveFallingBrickOnestep(0, -1);
+                            reCalculateVirtualFallenBrick();
+                            break;
+                        case 0x4d:
+                            moveFallingBrickOnestep(0, 1);
+                            reCalculateVirtualFallenBrick();
+                            break;
+                        case 0x50:
+                            moveFallingBrickOnestep(1, 1);
+                            break;
+                        case 0x48:
+                            hardDrop();
+                            time_from_last_brick_fall = brick_fall_interval;
+                            break;
+                    }
+                    break;
+                case 0x7a:
+                    rotateBrickLeft();
+                    reCalculateVirtualFallenBrick();
+                    break;
+                case 0x63:
+                    rotateBrickRight();
+                    reCalculateVirtualFallenBrick();
+                    break;
+                /*case 0x78:
+                    x key
+                    break;*/
             }
         }
 
