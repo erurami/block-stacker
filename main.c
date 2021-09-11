@@ -11,9 +11,7 @@
 /*                                                          */
 /*  TODO:                                                   */
 /*                                                          */
-/*      add hold                                            */
-/*                                                          */
-/*      animation game start                                */
+/*       gamemode     ,      demo mode                      */
 /*                                                          */
 /*                                                          */
 /*----------------------------------------------------------*/
@@ -149,6 +147,9 @@ int state = 0;
 int time_from_last_brick_fall = 0;
 int brick_fall_interval;
 
+int holded_brick = 0;
+int already_holded = 0;
+
 
 
 
@@ -226,6 +227,8 @@ struct BRICK_INFO reCalculateBrickCordinate(struct BRICK_INFO);
 void reCalculateVirtualFallenBrick();
 
 int newBrick(void);
+
+int holdBrick(void);
 
 int isBrickMovableTo(int *);
 /*argument should be 2x4 array expressed as array length of 8.*/
@@ -400,9 +403,11 @@ int main()
                     rotateBrickRight();
                     reCalculateVirtualFallenBrick();
                     break;
-                /*case 0x78:
-                    x key
-                    break;*/
+                case 0x78:
+                    if (!holdBrick())
+                        state = 2;
+                    reCalculateVirtualFallenBrick();
+                    break;
             }
         }
 
@@ -435,6 +440,8 @@ int main()
         renderGame();
         last_cpu_time = cpu_time;
     }
+
+    /*GAMEOVER:*/
 
     switch (state)
     {
@@ -642,6 +649,36 @@ int newBrick(void)
     }
     int new_upcoming = rand()%7+1;
     upcoming_bricks[len_upcoming - 1] = new_upcoming;
+    already_holded = 0;
+    return 1;
+}
+
+int holdBrick(void)
+{
+    if (already_holded)
+        return 1;
+
+    if (holded_brick != 0)
+    {
+        int tmp;
+        tmp = falling_brick.brick_type;
+        falling_brick.brick_type = holded_brick;
+        holded_brick = tmp;
+        falling_brick.rotation = 0;
+        falling_brick.position[0] = BRICK_START_POINT[falling_brick.brick_type-1][0];
+        falling_brick.position[1] = BRICK_START_POINT[falling_brick.brick_type-1][1];
+        falling_brick = reCalculateBrickCordinate(falling_brick);
+    }
+    else
+    {
+        holded_brick = falling_brick.brick_type;
+        newBrick();
+    }
+
+    already_holded = 1;
+
+    if (!isBrickMovableTo(falling_brick.cordinates))
+        return 0;
     return 1;
 }
 
@@ -793,7 +830,8 @@ int detectAndDeleteFullRow(void)
             fixed_blocks[i][j] = 0;
         }
     }
-    
+
+    reCalculateVirtualFallenBrick();
 
     lines += full_row_amount;
     switch (full_row_amount)
@@ -1269,7 +1307,8 @@ void printColoredBlock(int block_color)
 
 void printSingleBrick(int *cordinates, int brick_type)
 {
-    if (brick_type >= 8)
+    if (brick_type >= 8 ||
+        brick_type <= 0)
     {
         return;
     }
@@ -1285,10 +1324,12 @@ void printSingleBrick(int *cordinates, int brick_type)
 }
 
 int last_upcoming_bricks[5];
+int last_holded_brick;
 
 void initRenderGame(void)
 {
     memcpy(last_upcoming_bricks, upcoming_bricks, sizeof(upcoming_bricks));
+    last_holded_brick = holded_brick;
     return;
 }
 
@@ -1302,39 +1343,55 @@ void print_next_brick(int brick_index)
 
 void renderLeftSide(int y)
 {
+    printf("\033[14C##\033[16D");
     switch (y)
     {
         case 1:
-            printf("=====score====##");
+            printf("=====score====");
             break;
         case 3:
-            printf("%14ld##",score);
+            printf("%14ld",score);
             break;
         case 5:
-            printf("=====lines====##");
+            printf("=====lines====");
             break;
         case 7:
-            printf("%14ld##",lines);
+            printf("%14ld",lines);
             break;
         case 9:
-            printf("=====time=====##");
+            printf("=====time=====");
             break;
         case 11:
-            printf("%2d:%02d:%02d.%03d  ##", game_time/3600000, (game_time%3600000/60000), (game_time%60000)/1000, game_time%1000);
+            printf("%2d:%02d:%02d.%03d  ", game_time/3600000, (game_time%3600000/60000), (game_time%60000)/1000, game_time%1000);
             break;
         case 13:
-            printf("=====hold=====##");
+            printf("=====hold=====");
             break;
         case 14:
-            printf("-             ##");
+            if (last_holded_brick != holded_brick)
+                printf("              \033[14D");
+            printf("   ");
+            printSingleBrick(BRICKS_AND_ROTATIONS_AND_BLOCK_POSITIONS[holded_brick - 1][0], holded_brick);
+            printf("\033[11C");
+            break;
+        case 15 ... 17:
+            if (last_holded_brick != holded_brick)
+            {
+                printf("              ");
+            }
+            else
+            {
+                printf("\033[14C");
+            }
             break;
         case 19:
-            printf("==============##");
+            printf("==============");
             break;
         default:
-            printf("              ##");
+            printf("              ");
             break;
     }
+    printf("\033[2C");
 
 }
 
@@ -1382,6 +1439,7 @@ void renderGame(void)
     printf("\033[10D\033[%dA", row+5);
 
     memcpy(last_upcoming_bricks, upcoming_bricks, sizeof(upcoming_bricks));
+    last_holded_brick = holded_brick;
 
 }
 
