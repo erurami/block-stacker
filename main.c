@@ -139,12 +139,21 @@ int main_grid[row][10] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 int upcoming_bricks[5];
 
 long game_time;
-long cpu_time;
-long last_cpu_time;
 
 int state = 0;
 
+
+struct GAME_CLOCK{
+    long CLOCK_START;
+    long pause_time;
+    long game_clock;
+
+    long pause_start;
+} game_clock;
+
+
 int time_from_last_brick_fall = 0;
+long last_brick_fall_time;
 int brick_fall_interval;
 
 int holded_brick = 0;
@@ -219,6 +228,8 @@ int rotateBrickLeft(void);
 
 void hardDrop(void);
 
+void singleDrop(void);
+
 /*----------------------------------------*/
 
 
@@ -226,9 +237,9 @@ struct BRICK_INFO reCalculateBrickCordinate(struct BRICK_INFO);
 
 void reCalculateVirtualFallenBrick();
 
-int newBrick(void);
+void newBrick(void);
 
-int holdBrick(void);
+void holdBrick(void);
 
 int isBrickMovableTo(int *);
 /*argument should be 2x4 array expressed as array length of 8.*/
@@ -263,6 +274,56 @@ void gameStartAnimation(void);
 /*--------------------------------------------------------*/
 /*                                                        */
 /*--------------------------------------------------------*/
+
+
+
+
+
+/*-------------------------------------------------------*
+ *                   keyboard functions                  *
+ *-------------------------------------------------------*/
+
+int getKeyInput(void);
+
+/* keyboard keycodes
+ *   0 : Null
+ *   1 : Esc
+ *   2 : Enter
+ *   3 : Space
+ *   4 : Up arrow
+ *   5 : Down arrow
+ *   6 : Left arrow
+ *   7 : Right arrow
+ *   8 : z
+ *   9 : x
+ *   10 : c
+ */
+
+/*--------------------------------------------------------*/
+/*                                                        */
+/*--------------------------------------------------------*/
+
+
+
+
+
+/*-------------------------------------------------------*
+ *                    clock functions                    *
+ *-------------------------------------------------------*/
+
+void initClock(void);
+
+void pause(void);
+
+void resume(void);
+
+long getGameTime(void);
+
+/*-------------------------------------------------------*
+ *                                                       *
+ *-------------------------------------------------------*/
+
+
 
 
 
@@ -331,7 +392,10 @@ int main()
     score = 0;
     lines = 0;
 
+    initClock();
+
     time_from_last_brick_fall = 0;
+    last_brick_fall_time = clock();
     for (int i=0; i<row; i++)
     {
         for (int j=0; j<10; j++)
@@ -353,18 +417,14 @@ int main()
     initRenderGame();
 
     game_time = 0;
-    cpu_time = clock();
-    last_cpu_time = cpu_time;
 
     gameStartAnimation();
 
     while (state == 0)
     {
-        cpu_time = clock();
-        time_from_last_brick_fall += cpu_time - last_cpu_time;
-        game_time += cpu_time - last_cpu_time;
+        game_time = getGameTime();
 
-        while (kbhit())
+        /*while (kbhit())
         {
             keyboard_input = getch();
             switch (keyboard_input) 
@@ -409,39 +469,77 @@ int main()
                     reCalculateVirtualFallenBrick();
                     break;
             }
+        }*/
+
+        keyboard_input = getKeyInput();
+
+        while (keyboard_input)
+        {
+            switch (keyboard_input)
+            {
+                case 1:
+                    pause();
+                    if (pauseMenu())
+                    {
+                        goto GAMEEND;
+                    }
+                    else
+                    {
+                        resume();
+                    }
+                    break;
+                case 4:
+                    hardDrop();
+                    break;
+                case 5:
+                    moveFallingBrickOnestep(1, 1);
+                    break;
+                case 6:
+                    moveFallingBrickOnestep(0, -1);
+                    reCalculateVirtualFallenBrick();
+                    break;
+                case 7:
+                    moveFallingBrickOnestep(0, 1);
+                    reCalculateVirtualFallenBrick();
+                    break;
+                case 8:
+                    rotateBrickLeft();
+                    reCalculateVirtualFallenBrick();
+                    break;
+                case 10:
+                    rotateBrickRight();
+                    reCalculateVirtualFallenBrick();
+                    break;
+                case 9:
+                    holdBrick();
+                    reCalculateVirtualFallenBrick();
+                    break;
+            }
+            keyboard_input = getKeyInput();
         }
+
+        time_from_last_brick_fall = getGameTime() - last_brick_fall_time;
 
         if (time_from_last_brick_fall >= brick_fall_interval)
         {
             for (int i=0; i<time_from_last_brick_fall/brick_fall_interval; i++)
-            {
-                if(!moveFallingBrickOnestep(1, 1))
-                {
-                    fixFallingBrick();
-                    if (!newBrick())
-                    {
-                        state = 2;
-                        break;
-                    }
-                    time_from_last_brick_fall = 0;
-                    reCalculateVirtualFallenBrick();
-                }
-            }
-            time_from_last_brick_fall %= brick_fall_interval;
+                singleDrop();
+            last_brick_fall_time = getGameTime();
         }
 
         if (detectAndDeleteFullRow())
-            time_from_last_brick_fall = 0;
+        {
+            last_brick_fall_time = getGameTime();
+        }
 
         drawFixedBlocks();
         drawBrick(virtual_fallen_brick);
         drawBrick(falling_brick);
 
         renderGame();
-        last_cpu_time = cpu_time;
     }
 
-    /*GAMEOVER:*/
+    GAMEOVER:
 
     switch (state)
     {
@@ -449,11 +547,14 @@ int main()
             if (gameoverAndAskContinue())
                 goto GAME_START;
         default:
-            printf("\033[10C\033[25B\n\n\n\n");
-            showConsoleCursor();
-            return 0;
-
+            goto GAMEEND;
     }
+
+    GAMEEND:
+
+    printf("\033[10C\033[25B\n\n\n\n");
+    showConsoleCursor();
+    return 0;
 }
 
 
@@ -612,6 +713,22 @@ void hardDrop(void)
         score += 1;
     }
     while (result);
+
+    fixFallingBrick();
+    newBrick();
+    last_brick_fall_time = getGameTime();
+
+    return;
+}
+
+void singleDrop(void)
+{
+    if (!moveFallingBrickOnestep(1, 1))
+    {
+        fixFallingBrick();
+        newBrick();
+    }
+    return;
 }
 
 void reCalculateVirtualFallenBrick(void)
@@ -631,7 +748,7 @@ void fixFallingBrick(void)
         fixed_blocks[falling_brick.cordinates[i*2+1]][falling_brick.cordinates[i*2]] = falling_brick.brick_type;
 }
 
-int newBrick(void)
+void newBrick(void)
 {
     falling_brick.brick_type = upcoming_bricks[0];
     falling_brick.rotation = 0;
@@ -639,7 +756,10 @@ int newBrick(void)
     falling_brick.position[1] = BRICK_START_POINT[falling_brick.brick_type-1][1];
     falling_brick = reCalculateBrickCordinate(falling_brick);
     if (!isBrickMovableTo(falling_brick.cordinates))
-        return 0;
+        {
+        state = 2;
+        return;
+        }
 
     int len_upcoming = sizeof(upcoming_bricks) / sizeof(int);
     for (int i=0; i<len_upcoming; i++)
@@ -650,13 +770,18 @@ int newBrick(void)
     int new_upcoming = rand()%7+1;
     upcoming_bricks[len_upcoming - 1] = new_upcoming;
     already_holded = 0;
-    return 1;
+
+    reCalculateVirtualFallenBrick();
+
+    time_from_last_brick_fall = 0;
+
+    return;
 }
 
-int holdBrick(void)
+void holdBrick(void)
 {
     if (already_holded)
-        return 1;
+        return;
 
     if (holded_brick != 0)
     {
@@ -677,9 +802,7 @@ int holdBrick(void)
 
     already_holded = 1;
 
-    if (!isBrickMovableTo(falling_brick.cordinates))
-        return 0;
-    return 1;
+    return;
 }
 
 struct BRICK_INFO reCalculateBrickCordinate(struct BRICK_INFO brick_info)
@@ -1219,6 +1342,32 @@ int pauseMenu(void)
 
 
 
+
+
+void initClock(void)
+{
+    game_clock.CLOCK_START = clock();
+}
+
+void pause(void)
+{
+    game_clock.pause_start = clock();
+}
+
+void resume(void)
+{
+    game_clock.pause_time += clock() - game_clock.pause_start;
+}
+
+long getGameTime(void)
+{
+    return clock() - game_clock.CLOCK_START - game_clock.pause_time;
+}
+
+
+
+
+
 void hideConsoleCursor(void)
 {
     BOOL bRtn;
@@ -1245,6 +1394,53 @@ void showConsoleCursor(void)
     cci.bVisible = TRUE;
     SetConsoleCursorInfo(hOut, &cci);
     return;
+}
+
+int getKeyInput(void)
+{
+    if (!kbhit())
+        return 0;
+    switch (getch())
+    {
+        case 0x1b:
+            return 1;
+            break;
+        case 0x0d:
+            return 2;
+            break;
+        case 0x20:
+            return 3;
+            break;
+        case 0xe0:
+            switch (getch())
+            {
+                case 0x48:
+                    return 4;
+                    break;
+                case 0x50:
+                    return 5;
+                    break;
+                case 0x4b:
+                    return 6;
+                    break;
+                case 0x4d:
+                    return 7;
+                    break;
+            }
+            break;
+        case 0x7a:
+            return 8;
+            break;
+        case 0x78:
+            return 9;
+            break;
+        case 0x63:
+            return 10;
+            break;
+        default:
+            return 0;
+            break;
+    }
 }
 
 void moveCursor(int vertical, int horizontal)
@@ -1374,19 +1570,15 @@ void renderLeftSide(int y)
             printSingleBrick(BRICKS_AND_ROTATIONS_AND_BLOCK_POSITIONS[holded_brick - 1][0], holded_brick);
             printf("\033[11C");
             break;
-        case 15 ... 17:
-            if (last_holded_brick != holded_brick)
-            {
-                printf("              ");
-            }
-            else
-            {
-                printf("\033[14C");
-            }
-            break;
         case 19:
             printf("==============");
             break;
+        case 15 ... 17:
+            if (last_holded_brick == holded_brick)
+            {
+                printf("\033[14C");
+                break;
+            }
         default:
             printf("              ");
             break;
