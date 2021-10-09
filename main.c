@@ -11,7 +11,7 @@
 /*                                                          */
 /*  TODO:                                                   */
 /*                                                          */
-/*       gamemode     ,      demo mode                      */
+/*     gamemode(e.g. 40 lines,,,) , demo mode               */
 /*                                                          */
 /*                                                          */
 /*----------------------------------------------------------*/
@@ -332,6 +332,8 @@ long getGameTime(void);
  *                    Console functions                  *
  *-------------------------------------------------------*/
 
+void applyConsoleSettings(void);
+
 void hideConsoleCursor(void);
 
 void showConsoleCursor(void);
@@ -372,10 +374,11 @@ int main()
     int keyboard_input;
     int arrow_code;
 
+    applyConsoleSettings();
+    hideConsoleCursor();
+
     printf("\n\n\n");
     printf("                    block stacker\n");
-
-    hideConsoleCursor();
 
     if (mainTitle() == 0)
     {
@@ -392,10 +395,8 @@ int main()
     score = 0;
     lines = 0;
 
-    initClock();
-
     time_from_last_brick_fall = 0;
-    last_brick_fall_time = clock();
+
     for (int i=0; i<row; i++)
     {
         for (int j=0; j<10; j++)
@@ -419,6 +420,9 @@ int main()
     game_time = 0;
 
     gameStartAnimation();
+
+    initClock();
+    last_brick_fall_time = 0;
 
     while (state == 0)
     {
@@ -518,7 +522,7 @@ int main()
             keyboard_input = getKeyInput();
         }
 
-        time_from_last_brick_fall = getGameTime() - last_brick_fall_time;
+        time_from_last_brick_fall = game_time - last_brick_fall_time;
 
         if (time_from_last_brick_fall >= brick_fall_interval)
         {
@@ -1367,21 +1371,33 @@ long getGameTime(void)
 
 
 
-
-void hideConsoleCursor(void)
+void applyConsoleSettings(void)
 {
     BOOL bRtn;
     HANDLE hOut;
-    CONSOLE_CURSOR_INFO cci;
     SMALL_RECT rctWindowRect = {0,0,55,35};
     COORD dwCoord = {56,36};
+
+    hOut = GetStdHandle(STD_OUTPUT_HANDLE);
+
+    bRtn = SetConsoleScreenBufferSize(hOut, dwCoord);
+    bRtn = SetConsoleWindowInfo(hOut,TRUE,&rctWindowRect);
+
+    system("reg delete \"HKEY_CURRENT_USER\\Console\" /v VirtualTerminalLevel /f");
+    system("reg add \"HKEY_CURRENT_USER\\Console\" /v VirtualTerminalLevel /t \"REG_DWORD\" /d \"1\"");
+    system("cls");
+    Sleep(1000);
+}
+
+void hideConsoleCursor(void)
+{
+    HANDLE hOut;
+    CONSOLE_CURSOR_INFO cci;
 
     hOut = GetStdHandle(STD_OUTPUT_HANDLE);
     GetConsoleCursorInfo(hOut, &cci);
     cci.bVisible = FALSE;
     SetConsoleCursorInfo(hOut, &cci);
-    bRtn = SetConsoleScreenBufferSize(hOut, dwCoord);
-    bRtn = SetConsoleWindowInfo(hOut,TRUE,&rctWindowRect);
     return;
 }
 
