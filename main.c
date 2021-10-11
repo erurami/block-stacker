@@ -378,7 +378,7 @@ int main()
     hideConsoleCursor();
 
     printf("\n\n\n");
-    printf("                    block stacker\n");
+    printf("                       tetris\n");
 
     if (mainTitle() == 0)
     {
@@ -386,6 +386,8 @@ int main()
         showConsoleCursor();
         return 0;
     }
+
+    brick_fall_interval = 500;
 
     GAME_START:
 
@@ -407,13 +409,12 @@ int main()
 
     srand((unsigned int)time(NULL));
 
-    brick_fall_interval = 500;
-
     for (int i=0; i<5; i++)
         upcoming_bricks[i] = rand()%7+1;
     newBrick();
 
     reCalculateVirtualFallenBrick();
+    holded_brick = 0;
 
     initRenderGame();
 
@@ -1114,7 +1115,7 @@ int mainTitle(void)
                 switch (y)
                 {
                     case 5:
-                        printf("    block stacker   ");
+                        printf("       tetris       ");
                         break;
                     case 17:
                         printf("    press \033[32many key\033[m   ");
@@ -1209,7 +1210,7 @@ void printPauseMenu(int y)
             printf("   [z, c] : Rotate  ");
             break;
         case 8:
-            printf(" [l, r arrow] : Move");
+            printf("   [arrow] : Move   ");
             break;
         case 10:
             printf(" [down arrow]       ");
@@ -1224,7 +1225,7 @@ void printPauseMenu(int y)
             printf("        : HardDrop  ");
             break;
         case 15:
-            printf("[x]:hold unavailable");
+            printf("      [x]:hold      ");
             break;
         case 17:
             printf("    press  \033[32m[Esc]\033[m    ");
@@ -1351,6 +1352,7 @@ int pauseMenu(void)
 void initClock(void)
 {
     game_clock.CLOCK_START = clock();
+    game_clock.pause_time = 0;
 }
 
 void pause(void)
@@ -1386,7 +1388,7 @@ void applyConsoleSettings(void)
     system("reg delete \"HKEY_CURRENT_USER\\Console\" /v VirtualTerminalLevel /f");
     system("reg add \"HKEY_CURRENT_USER\\Console\" /v VirtualTerminalLevel /t \"REG_DWORD\" /d \"1\"");
     system("cls");
-    Sleep(1000);
+    Sleep(100);
 }
 
 void hideConsoleCursor(void)
