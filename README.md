@@ -1,9 +1,9 @@
 # block-stacker
-block stacking game playing on windows command prompt.
+block stacking game playing on windows command prompt. Tos say, "Tetris"
 
 # How to play
 
-just double click game.exe.
+run game.exe.
 
 ## Controls
 
